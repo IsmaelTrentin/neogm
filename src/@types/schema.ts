@@ -13,12 +13,12 @@ import { Properties } from './utils';
 
 // Used in neogm.schema to define schema structure
 // (intellisense on keys but value is of accepted neo4j types)
-export type SchemaProperties<P extends Properties = Properties> = {
+type SchemaProperties<P extends Properties = Properties> = {
   [Property in keyof P]: SchemaPropertyTypes | SchemaPropertyObject;
 };
 
 // Allowed types to define schema structure
-export type SchemaPropertyTypes =
+type SchemaPropertyTypes =
   | typeof Integer
   | typeof Number
   | typeof String
@@ -39,18 +39,37 @@ interface SchemaPropertyObject {
   default?: InstanceType<SchemaPropertyObject['type']>;
 }
 
+type SchemaLabels<IsR> = IsR extends true
+  ? readonly [string]
+  : readonly string[];
+
 export interface Schema<
-  L extends string[] = string[],
-  P extends Properties = Properties
+  IsR extends boolean,
+  L extends SchemaLabels<IsR>,
+  P extends Properties
 > {
+  isRelationship: IsR;
   labels: L;
   schemaProperties: SchemaProperties<P>;
 }
 
 export type SchemaFactory = <
-  L extends string[] = string[],
+  IsR extends boolean = false,
+  L extends SchemaLabels<IsR> = SchemaLabels<IsR>,
   P extends Properties = Properties
 >(
+  isRelationship: IsR,
   labels: L,
   schemaProperties: SchemaProperties<P>
-) => Schema<L, P>;
+) => Schema<IsR, L, P>;
+
+export interface NodeSchema<
+  L extends SchemaLabels<false> = SchemaLabels<false>,
+  P extends Properties = Properties
+> extends Schema<false, L, P> {}
+export interface RelationshipSchema<
+  L extends SchemaLabels<true> = SchemaLabels<true>,
+  P extends Properties = Properties
+> extends Schema<true, L, P> {}
+
+export type Schemas = NodeSchema | RelationshipSchema;
