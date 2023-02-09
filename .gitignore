@@ -2,3 +2,5 @@ node_modules
 log
 dist
 .env*
+test
+src/test.ts
