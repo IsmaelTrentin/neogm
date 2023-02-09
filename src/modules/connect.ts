@@ -9,7 +9,7 @@ export const session = {
     if (_session) {
       return _session as Session;
     }
-    throw new Error('No session started');
+    throw new Error('no connection to db');
   },
   async close() {
     _session && (await _session.close());
@@ -23,5 +23,6 @@ export const connect = async (
 ) => {
   const driver = neo4j.driver(url, authToken, config);
   _session = driver.session();
+  // does not fail if server is down, why??
   // return _session;
 };
