@@ -11,14 +11,55 @@ import {
 
 import { Properties } from './utils';
 
-// Used in neogm.schema to define schema structure
-// (intellisense on keys but value is of accepted neo4j types)
-export type SchemaProperties<P extends Properties = Properties> = {
-  [Property in keyof P]: SchemaPropertyTypes | SchemaPropertyObject;
+export interface NodeSchema<
+  L extends readonly string[] = readonly string[],
+  P extends Properties = Properties
+> {
+  schemaType: 'node';
+  schemaProperties: NodeSchemaProperties<P>;
+  labels: L;
+}
+
+export interface RelationshipSchema<
+  T extends string = string,
+  P extends Properties = Properties
+> {
+  schemaType: 'relationship';
+  schemaProperties: RelationshipSchemaProperties<P>;
+  type: T;
+}
+
+type NodeSchemaProperties<P extends Properties> = SchemaProperties<P> & {
+  allowedRelationships?: {
+    [key: string]: {
+      direction: 'in' | 'out';
+      target?: {
+        labels?: string[];
+        props?: Properties;
+      };
+      unique?: boolean;
+    };
+  };
 };
 
+type RelationshipSchemaProperties<P extends Properties> = SchemaProperties<P>;
+
+// Used in neogm.schema to define schema structure
+// (intellisense on keys but value is of accepted neo4j types)
+type SchemaProperties<P extends Properties = Properties> = {
+  [Property in keyof P]: SchemaPropertyObject | SchemaPropertyTypes;
+};
+
+// In depth definition of schema structure
+interface SchemaPropertyObject {
+  type: SchemaPropertyTypes;
+  mandatory?: boolean;
+  unique?: boolean;
+  default?: InstanceType<SchemaPropertyObject['type']>;
+}
+
 // Allowed types to define schema structure
-export type SchemaPropertyTypes =
+type SchemaPropertyTypes =
   | typeof Integer
   | typeof Number
   | typeof String
@@ -31,26 +72,13 @@ export type SchemaPropertyTypes =
   | typeof LocalDateTime
   | typeof Duration;
 
-// In depth definition of schema structure
-interface SchemaPropertyObject {
-  type: SchemaPropertyTypes;
-  mandatory?: boolean;
-  unique?: boolean;
-  default?: InstanceType<SchemaPropertyObject['type']>;
-}
-
-export interface Schema<
-  L extends string[] = string[],
-  P extends Properties = Properties
-> {
-  labels: L;
-  schemaProperties: SchemaProperties<P>;
-}
-
-export type SchemaFactory = <
-  L extends string[] = string[],
-  P extends Properties = Properties
->(
-  labels: L,
-  schemaProperties: SchemaProperties<P>
-) => Schema<L, P>;
+export type SchemaFactory = {
+  node<L extends NodeSchema['labels'], P extends Properties>(
+    labels: L,
+    schemaProperties: NodeSchemaProperties<P>
+  ): NodeSchema<L, P>;
+  relationship<T extends RelationshipSchema['type'], P extends Properties>(
+    type: T,
+    schemaProperties: RelationshipSchemaProperties<P>
+  ): RelationshipSchema<T, P>;
+};

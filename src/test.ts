@@ -1,31 +1,10 @@
-import { Date, Integer, int } from 'neo4j-driver';
+import { Integer, Date as NeoDate, int } from 'neo4j-driver';
 
 import dotenv from 'dotenv';
 import neo4j from 'neo4j-driver';
 import neogm from './index';
 
 dotenv.config();
-
-type PersonLabels = ['Entity', 'Person'];
-interface IPerson {
-  bid: Integer;
-  dob: Date;
-  name: string;
-}
-
-const personSchema = neogm.schema<PersonLabels, IPerson>(['Entity', 'Person'], {
-  bid: {
-    type: Integer,
-    unique: true,
-  },
-  dob: {
-    type: Date,
-    default: new Date(int(2022), int(2), int(22)),
-  },
-  name: String,
-});
-
-const Person = neogm.model('Person', personSchema);
 
 const main = async () => {
   if (!process.env.DB_URL) {
@@ -55,22 +34,53 @@ const main = async () => {
     throw error;
   }
 
-  const results = await Person.all();
-  console.log(results.map(r => r.properties.name));
+  type TestType = 'TEST';
+  interface TestProps {
+    rel: Integer;
+  }
+  const testRelationshipSchema = neogm.schema.relationship<TestType, TestProps>(
+    'TEST',
+    {
+      rel: {
+        type: Integer,
+        default: int(123),
+        mandatory: false,
+      },
+    }
+  );
 
-  // const node = Person.create({
-  //   bid: int(3333),
-  //   name: 'Refactor 2',
-  //   dob: new Date(int(3333), int(3), int(3)),
-  // });
+  type TestNodeLabels = ['Test', 'Node'];
+  interface TestNodeProps {
+    prop: NeoDate;
+  }
+  const testNodeSchema = neogm.schema.node<TestNodeLabels, TestNodeProps>(
+    ['Test', 'Node'],
+    {
+      prop: {
+        type: NeoDate,
+        default: NeoDate.fromStandardDate(new Date()),
+        mandatory: true,
+      },
+      allowedRelationships: {
+        [testRelationshipSchema.type]: {
+          direction: 'out',
+        },
+      },
+    }
+  );
 
-  // console.log('labels', node.labels);
-  // console.log('props ', node.properties);
-  // console.log('str   ', node.toString());
-  // console.log('obj   ', node.toObject());
+  const TestNode = neogm.model.node('TestNode', testNodeSchema);
+  const doc = TestNode.create({
+    prop: new NeoDate(int(2000), int(2), int(2)),
+  });
 
-  // const result = await node.save();
-  // console.log('result', result);
+  console.log(doc.labels);
+  console.log(doc.properties);
+  console.log(doc.toObject());
+  console.log(doc.toString());
+
+  const r = await doc.save();
+  console.log(r);
 };
 
 main().catch(e => console.error(e));

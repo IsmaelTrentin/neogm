@@ -1,9 +1,25 @@
 import { SchemaFactory } from '../@types';
 
-export const schema: SchemaFactory = (labels, schemaProperties) => {
-  // handle indexes and constraints
+const node: SchemaFactory['node'] = (labels, schemaProperties) => {
   return {
+    schemaType: 'node',
     labels,
     schemaProperties,
   };
+};
+
+const relationship: SchemaFactory['relationship'] = (
+  type,
+  schemaProperties
+) => {
+  return {
+    schemaType: 'relationship',
+    type,
+    schemaProperties,
+  };
+};
+
+export const schema: SchemaFactory = {
+  node,
+  relationship,
 };
