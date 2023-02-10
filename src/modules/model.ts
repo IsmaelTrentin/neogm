@@ -1,36 +1,34 @@
 import {
-  GetPropertiesTypeFromSchema,
+  GetNodeProperties,
+  GetRelationshipProperties,
   ModelFactory,
   PropertiesKeysObject,
 } from '../@types';
 
-import { node } from './node';
+import { node as nodeUtil } from './node';
 import { session } from './connect';
 
-export const model: ModelFactory = (name, schema, unique = true) => {
-  type Props = GetPropertiesTypeFromSchema<typeof schema>;
-
-  const { schemaProperties } = schema;
-  // TODO: fix ts(2322) @ ModelFactory <S...
-  const labels = schema.labels;
+const node: ModelFactory['node'] = (name, schema, unique = true) => {
+  const { labels, schemaProperties } = schema;
+  type Props = GetNodeProperties<typeof schema>;
 
   return {
     create: properties => {
       return {
-        labels: labels, //
+        labels,
         properties,
         toString: (varName = 'n') => {
-          return node.buildNode(labels, properties, varName);
+          return nodeUtil.buildNode(labels, properties, varName);
         },
         _modelName: name,
         toObject: () => {
           return {
-            labels, //
+            labels,
             properties,
           };
         },
         save: async (varName: string = 'n') => {
-          const built = node.buildNode(labels, properties, varName);
+          const built = nodeUtil.buildNode(labels, properties, varName);
           const createMode = unique ? 'MERGE' : 'CREATE';
           const result = await session
             .get()
@@ -43,11 +41,12 @@ export const model: ModelFactory = (name, schema, unique = true) => {
       };
     },
     match: async (filter: Partial<Props> = {}) => {
-      const built = node.buildNode(labels, filter);
+      const built = nodeUtil.buildNode(labels, filter);
       const result = await session
         .get()
         .run<Props>(`MATCH ${built} RETURN n`, filter);
-      return result.records.map(r => r.get('n'));
+      // return result.records.map(r => r.get('n'));
+      return result;
     },
     query: async (builder, varNames = ['n']) => {
       const keys = Object.keys(schemaProperties) as (keyof Props)[]; // or as keyof SchemaProperties ?
@@ -56,11 +55,25 @@ export const model: ModelFactory = (name, schema, unique = true) => {
         keysObject[k] = k;
       }
       const query = builder(labels, keysObject);
-      const result = await session
-        .get()
-        .run<GetPropertiesTypeFromSchema<typeof schema>>(query);
+      const result = await session.get().run<Props>(query);
 
-      return result.records as any;
+      return result;
     },
   };
+};
+
+const relationship: ModelFactory['relationship'] = (
+  name,
+  schema,
+  unique = true
+) => {
+  const { type, schemaProperties } = schema;
+  type Props = GetRelationshipProperties<typeof schema>;
+
+  return {};
+};
+
+export const model: ModelFactory = {
+  node,
+  relationship,
 };

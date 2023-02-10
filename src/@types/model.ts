@@ -1,49 +1,65 @@
-import {
-  GetLabelsTypeFromSchema,
-  GetPropertiesTypeFromSchema,
+import type {
+  GetNodeProperties,
+  GetRelationshipProperties,
   Properties,
 } from './utils';
-import { RelationshipSchema, Schemas } from '.';
+import type { NodeSchema, RelationshipSchema } from '.';
 
-import { Node } from 'neo4j-driver';
-import { QueryNodeResult } from './node';
+import type { QueryResult } from 'neo4j-driver';
 
-export interface ModelObject<S extends Schemas> {
-  labels: GetLabelsTypeFromSchema<S>;
-  properties: GetPropertiesTypeFromSchema<S>;
+interface NodeModelObject<S extends NodeSchema> {
+  labels: S['labels'];
+  properties: GetNodeProperties<S>;
 }
 
-export interface Model<S extends Schemas> extends ModelObject<S> {
+interface RelationshipModelObject<S extends RelationshipSchema> {
+  type: S['type'];
+  properties: GetRelationshipProperties<S>;
+}
+
+interface NodeModel<S extends NodeSchema = NodeSchema>
+  extends NodeModelObject<S> {
   toString(varName?: string): string;
-  toObject(): ModelObject<S>;
-  save(varName?: string): Promise<ModelObject<S>['properties']>;
+  toObject(): NodeModelObject<S>;
+  save(varName?: string): Promise<NodeModelObject<S>['properties']>;
+}
+
+interface RelationshipModel<S extends RelationshipSchema = RelationshipSchema>
+  extends RelationshipModelObject<S> {
+  toString(varName?: string): string;
+  toObject(): RelationshipModelObject<S>;
+  save(varName?: string): Promise<RelationshipModelObject<S>['properties']>;
 }
 
 export type PropertiesKeysObject<P extends Properties = Properties> = {
   [Property in keyof P]: keyof P;
 };
 
-type CreateFunction<S extends Schemas> = (
-  properties: GetPropertiesTypeFromSchema<S>
-) => Model<S>;
-type MatchFunction<S extends Schemas> = (
-  filter?: Partial<GetPropertiesTypeFromSchema<S>>
-) => Promise<QueryNodeResult<S>[]>;
-type QueryBuilderFunction<S extends Schemas> = (
-  labels: GetLabelsTypeFromSchema<S>,
-  keys: PropertiesKeysObject<GetPropertiesTypeFromSchema<S>>
-) => string;
-type QueryFunction<S extends Schemas> = (
-  builder: QueryBuilderFunction<S>,
-  varNames?: string[]
-) => Promise<QueryNodeResult<S>[]>;
+export type ModelFactory = {
+  node: NodeModelFactory;
+  relationship: RelationshipModelFactory;
+};
 
-export type ModelFactory = <S extends Schemas>(
+type NodeModelFactory = <S extends NodeSchema>(
   name: string,
   schema: S,
   unique?: boolean
 ) => {
-  create: CreateFunction<S>;
-  match: MatchFunction<S>;
-  query: QueryFunction<S>;
+  create(properties: GetNodeProperties<S>): NodeModel<S>;
+  match(
+    filter?: Partial<GetNodeProperties<S>>
+  ): Promise<QueryResult<NodeModel<S>['properties']>>;
+  query(
+    builder: (
+      labels: S['labels'],
+      keys: PropertiesKeysObject<NodeModel<S>['properties']>
+    ) => string,
+    varNames?: string[]
+  ): Promise<QueryResult<NodeModel<S>['properties']>>;
 };
+
+type RelationshipModelFactory = <S extends RelationshipSchema>(
+  name: string,
+  schema: S,
+  unique?: boolean
+) => {};
