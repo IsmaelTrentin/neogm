@@ -1,4 +1,4 @@
-import { Date, Integer, int } from 'neo4j-driver';
+import { Integer, Date as NeoDate, int } from 'neo4j-driver';
 
 import dotenv from 'dotenv';
 import neo4j from 'neo4j-driver';
@@ -33,6 +33,54 @@ const main = async () => {
   } catch (error) {
     throw error;
   }
+
+  type TestType = 'TEST';
+  interface TestProps {
+    rel: Integer;
+  }
+  const testRelationshipSchema = neogm.schema.relationship<TestType, TestProps>(
+    'TEST',
+    {
+      rel: {
+        type: Integer,
+        default: int(123),
+        mandatory: false,
+      },
+    }
+  );
+
+  type TestNodeLabels = ['Test', 'Node'];
+  interface TestNodeProps {
+    prop: NeoDate;
+  }
+  const testNodeSchema = neogm.schema.node<TestNodeLabels, TestNodeProps>(
+    ['Test', 'Node'],
+    {
+      prop: {
+        type: NeoDate,
+        default: NeoDate.fromStandardDate(new Date()),
+        mandatory: true,
+      },
+      allowedRelationships: {
+        [testRelationshipSchema.type]: {
+          direction: 'out',
+        },
+      },
+    }
+  );
+
+  const TestNode = neogm.model.node('TestNode', testNodeSchema);
+  const doc = TestNode.create({
+    prop: new NeoDate(int(2000), int(2), int(2)),
+  });
+
+  console.log(doc.labels);
+  console.log(doc.properties);
+  console.log(doc.toObject());
+  console.log(doc.toString());
+
+  const r = await doc.save();
+  console.log(r);
 };
 
 main().catch(e => console.error(e));
