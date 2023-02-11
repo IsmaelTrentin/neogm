@@ -9,15 +9,33 @@ import {
   Time,
 } from 'neo4j-driver';
 
-import { Properties } from './utils';
+import { Properties, RelationshipDirection } from './utils';
+
+type NodeRelationshipEntry<
+  R extends RelationshipSchema,
+  N extends NodeSchema
+> = {
+  schema: R;
+  direction: RelationshipDirection;
+  nodeSchema: N;
+  unique?: boolean;
+};
+
+type NodeAllowedRelationships = {
+  [key: string]: NodeRelationshipEntry<RelationshipSchema, NodeSchema>;
+};
 
 export interface NodeSchema<
   L extends readonly string[] = readonly string[],
   P extends Properties = Properties
 > {
   schemaType: 'node';
-  schemaProperties: NodeSchemaProperties<P>;
+  schemaProperties: SchemaProperties<P>;
   labels: L;
+  allowedRelationships: NodeAllowedRelationships;
+  defineRelationship: <R extends RelationshipSchema, N extends NodeSchema>(
+    relationship: NodeRelationshipEntry<R, N>
+  ) => NodeSchema<L, P>;
 }
 
 export interface RelationshipSchema<
@@ -25,24 +43,9 @@ export interface RelationshipSchema<
   P extends Properties = Properties
 > {
   schemaType: 'relationship';
-  schemaProperties: RelationshipSchemaProperties<P>;
+  schemaProperties: SchemaProperties<P>;
   type: T;
 }
-
-type NodeSchemaProperties<P extends Properties> = SchemaProperties<P> & {
-  allowedRelationships?: {
-    [key: string]: {
-      direction: 'in' | 'out';
-      target?: {
-        labels?: string[];
-        props?: Properties;
-      };
-      unique?: boolean;
-    };
-  };
-};
-
-type RelationshipSchemaProperties<P extends Properties> = SchemaProperties<P>;
 
 // Used in neogm.schema to define schema structure
 // (intellisense on keys but value is of accepted neo4j types)
@@ -75,10 +78,11 @@ type SchemaPropertyTypes =
 export type SchemaFactory = {
   node<L extends NodeSchema['labels'], P extends Properties>(
     labels: L,
-    schemaProperties: NodeSchemaProperties<P>
+    schemaProperties: SchemaProperties<P>,
+    allowedRelationships?: NodeAllowedRelationships
   ): NodeSchema<L, P>;
   relationship<T extends RelationshipSchema['type'], P extends Properties>(
     type: T,
-    schemaProperties: RelationshipSchemaProperties<P>
+    schemaProperties: SchemaProperties<P>
   ): RelationshipSchema<T, P>;
 };

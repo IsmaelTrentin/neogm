@@ -4,6 +4,8 @@ export interface Properties {
   [key: string]: any;
 }
 
+export type RelationshipDirection = 'in' | 'out';
+
 export type GetNodeLabels<S extends NodeSchema> = S extends NodeSchema<
   infer L,
   infer _P

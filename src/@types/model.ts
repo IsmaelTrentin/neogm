@@ -2,6 +2,7 @@ import type {
   GetNodeProperties,
   GetRelationshipProperties,
   Properties,
+  RelationshipDirection,
 } from './utils';
 import type { NodeSchema, RelationshipSchema } from '.';
 
@@ -21,8 +22,23 @@ interface NodeModel<S extends NodeSchema = NodeSchema>
   extends NodeModelObject<S> {
   toString(varName?: string): string;
   toObject(): NodeModelObject<S>;
+  // fix: typesafe based on types of NodeSchema['allowedRelationships]
+  addRelationship(config: {
+    relationship: RelationshipModelObject<
+      S['allowedRelationships']['*']['schema']
+    > & {
+      direction: RelationshipDirection;
+    };
+    node: NodeModelObject<S['allowedRelationships']['*']['nodeSchema']>;
+    unique?: boolean;
+  }): void;
   save(varName?: string): Promise<NodeModelObject<S>['properties']>;
 }
+
+// (n)*-[r:TYPE {props: ''}]-*(m:LABELS {props: ''})
+
+// MATCH (n), (m:LABELS {props: ''})
+// CREATE (n)*-[:TYPE {props: ''}]-*(m)
 
 interface RelationshipModel<S extends RelationshipSchema = RelationshipSchema>
   extends RelationshipModelObject<S> {
@@ -38,6 +54,14 @@ export type PropertiesKeysObject<P extends Properties = Properties> = {
 export type ModelFactory = {
   node: NodeModelFactory;
   relationship: RelationshipModelFactory;
+};
+
+type AAA<S extends NodeSchema> = {
+  type: keyof S['schemaProperties']['allowedRelationships'];
+  direction: RelationshipDirection;
+  target: NodeSchema;
+  targetProps?: GetNodeProperties<AAA<S>['target']>;
+  unique?: boolean;
 };
 
 type NodeModelFactory = <S extends NodeSchema>(

@@ -1,9 +1,9 @@
-import { Properties } from '../@types';
+import { Properties, RelationshipDirection } from '../@types';
 
 export const relationship = {
   buildBaseRelationship(
     type: string,
-    direction: 'in' | 'out',
+    direction: RelationshipDirection,
     properties: Properties,
     varName: string = 'n'
   ) {

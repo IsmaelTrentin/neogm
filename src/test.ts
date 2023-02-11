@@ -33,54 +33,85 @@ const main = async () => {
   } catch (error) {
     throw error;
   }
-
-  type TestType = 'TEST';
-  interface TestProps {
-    rel: Integer;
+  type TestRelationshipType = 'TEST';
+  interface TestRelationshipProps {
+    test: string;
   }
-  const testRelationshipSchema = neogm.schema.relationship<TestType, TestProps>(
-    'TEST',
-    {
-      rel: {
-        type: Integer,
-        default: int(123),
-        mandatory: false,
-      },
-    }
-  );
 
-  type TestNodeLabels = ['Test', 'Node'];
-  interface TestNodeProps {
-    prop: NeoDate;
-  }
-  const testNodeSchema = neogm.schema.node<TestNodeLabels, TestNodeProps>(
-    ['Test', 'Node'],
-    {
-      prop: {
-        type: NeoDate,
-        default: NeoDate.fromStandardDate(new Date()),
-        mandatory: true,
-      },
-      allowedRelationships: {
-        [testRelationshipSchema.type]: {
-          direction: 'out',
-        },
-      },
-    }
-  );
-
-  const TestNode = neogm.model.node('TestNode', testNodeSchema);
-  const doc = TestNode.create({
-    prop: new NeoDate(int(2000), int(2), int(2)),
+  const testRelSchema = neogm.schema.relationship<
+    TestRelationshipType,
+    TestRelationshipProps
+  >('TEST', {
+    test: {
+      type: String,
+      mandatory: false,
+    },
   });
 
-  console.log(doc.labels);
-  console.log(doc.properties);
-  console.log(doc.toObject());
-  console.log(doc.toString());
+  type NodeLabels = readonly ['Entity', 'NodeTest'];
+  interface NodeProps {
+    prop: Integer;
+    dob: NeoDate;
+    message: string;
+  }
 
-  const r = await doc.save();
-  console.log(r);
+  const nodeSchema = neogm.schema.node<NodeLabels, NodeProps>(
+    ['Entity', 'NodeTest'],
+    {
+      message: String,
+      dob: NeoDate,
+      prop: Integer,
+    }
+  );
+
+  type MovieLabels = ['Movie'];
+  interface MovieProps {
+    title: string;
+  }
+  const movieSchema = neogm.schema.node<MovieLabels, MovieProps>(['Movie'], {
+    title: {
+      type: String,
+      mandatory: true,
+    },
+  });
+
+  // (:Entity:NodeTest)-[:TEST]->(:Movie)
+  nodeSchema.defineRelationship({
+    schema: testRelSchema,
+    nodeSchema: movieSchema,
+    direction: 'out',
+  });
+
+  movieSchema.defineRelationship({
+    schema: testRelSchema,
+    direction: 'in',
+    nodeSchema: nodeSchema,
+  });
+
+  const Node = neogm.model.node<typeof nodeSchema>('Node', nodeSchema);
+  const doc = Node.create({
+    dob: new NeoDate(int(1000), int(1), int(1)),
+    prop: int(1),
+    message: 'msg',
+  });
+  // doc.addRelationship<typeof movieSchema>({
+  //   schema: testRelSchema,
+  //   node: movieSchema,
+  //   direction: 'out',
+  // });
+  doc.addRelationship({
+    relationship: {
+      direction: 'out',
+      type: testRelSchema.type,
+      properties: {
+        test: 'test prop on rel',
+      },
+    },
+    node: {
+      labels: ['Movie'],
+      properties: {},
+    },
+  });
 };
 
 main().catch(e => console.error(e));
