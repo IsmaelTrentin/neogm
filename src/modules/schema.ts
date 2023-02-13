@@ -1,23 +1,34 @@
-import { SchemaFactory } from '../@types';
+import { NodeAllowedRelationships, SchemaFactory } from '../@types';
 
-const node: SchemaFactory['node'] = (
-  labels,
-  schemaProperties,
-  allowedRelationships = {}
-) => {
+import jss from 'json-stable-stringify';
+import { relationship } from './relationship';
+
+const nodeSchemaFactory: SchemaFactory['node'] = (labels, schemaProperties) => {
+  const allowedRelationships: NodeAllowedRelationships = new Map();
+
   return {
     schemaType: 'node',
     labels,
     schemaProperties,
     allowedRelationships,
-    defineRelationship: relationship => {
-      allowedRelationships[relationship.schema.type] = relationship;
-      return node(labels, schemaProperties, allowedRelationships);
+    defineRelationship: relationshipEntry => {
+      // assert unique key exists when value is undefined
+      relationshipEntry.unique == undefined &&
+        (relationshipEntry.unique = false);
+      const k = relationship.getHash(relationshipEntry);
+      if (allowedRelationships.has(k)) {
+        throw new Error(
+          `relationship ${k} is already defined.\nentry: ${jss(
+            relationshipEntry
+          )}`
+        );
+      }
+      allowedRelationships.set(k, relationshipEntry);
     },
   };
 };
 
-const relationship: SchemaFactory['relationship'] = (
+const relationshipSchemaFactory: SchemaFactory['relationship'] = (
   type,
   schemaProperties
 ) => {
@@ -29,6 +40,6 @@ const relationship: SchemaFactory['relationship'] = (
 };
 
 export const schema: SchemaFactory = {
-  node,
-  relationship,
+  node: nodeSchemaFactory,
+  relationship: relationshipSchemaFactory,
 };

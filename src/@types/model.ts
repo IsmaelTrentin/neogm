@@ -8,43 +8,47 @@ import type { NodeSchema, RelationshipSchema } from '.';
 
 import type { QueryResult } from 'neo4j-driver';
 
-interface NodeModelObject<S extends NodeSchema> {
+export interface NodeModelObject<S extends NodeSchema> {
   labels: S['labels'];
   properties: GetNodeProperties<S>;
 }
 
-interface RelationshipModelObject<S extends RelationshipSchema> {
+export interface RelationshipModelObject<S extends RelationshipSchema> {
   type: S['type'];
   properties: GetRelationshipProperties<S>;
 }
 
-interface NodeModel<S extends NodeSchema = NodeSchema>
+export interface NodeModel<S extends NodeSchema = NodeSchema>
   extends NodeModelObject<S> {
+  name: string;
+  schema: S;
   toString(varName?: string): string;
   toObject(): NodeModelObject<S>;
   // fix: typesafe based on types of NodeSchema['allowedRelationships]
-  addRelationship(config: {
-    relationship: RelationshipModelObject<
-      S['allowedRelationships']['*']['schema']
-    > & {
-      direction: RelationshipDirection;
-    };
-    node: NodeModelObject<S['allowedRelationships']['*']['nodeSchema']>;
-    unique?: boolean;
-  }): void;
+  addRelationship<
+    R extends NonNullable<
+      ReturnType<S['allowedRelationships']['get']>
+    >['schema'],
+    N extends NonNullable<
+      ReturnType<S['allowedRelationships']['get']>
+    >['nodeSchema']
+  >(
+    relationship: RelationshipModel<R>,
+    node: NodeModel<N>,
+    direction: RelationshipDirection,
+    unique?: boolean
+  ): void;
   save(varName?: string): Promise<NodeModelObject<S>['properties']>;
 }
 
-// (n)*-[r:TYPE {props: ''}]-*(m:LABELS {props: ''})
-
-// MATCH (n), (m:LABELS {props: ''})
-// CREATE (n)*-[:TYPE {props: ''}]-*(m)
-
-interface RelationshipModel<S extends RelationshipSchema = RelationshipSchema>
-  extends RelationshipModelObject<S> {
-  toString(varName?: string): string;
+export interface RelationshipModel<
+  S extends RelationshipSchema = RelationshipSchema
+> extends RelationshipModelObject<S> {
+  name: string;
+  schema: S;
+  toString(direction: RelationshipDirection, varName?: string): string;
   toObject(): RelationshipModelObject<S>;
-  save(varName?: string): Promise<RelationshipModelObject<S>['properties']>;
+  // save(varName?: string): Promise<RelationshipModelObject<S>['properties']>;
 }
 
 export type PropertiesKeysObject<P extends Properties = Properties> = {
@@ -54,14 +58,6 @@ export type PropertiesKeysObject<P extends Properties = Properties> = {
 export type ModelFactory = {
   node: NodeModelFactory;
   relationship: RelationshipModelFactory;
-};
-
-type AAA<S extends NodeSchema> = {
-  type: keyof S['schemaProperties']['allowedRelationships'];
-  direction: RelationshipDirection;
-  target: NodeSchema;
-  targetProps?: GetNodeProperties<AAA<S>['target']>;
-  unique?: boolean;
 };
 
 type NodeModelFactory = <S extends NodeSchema>(
@@ -86,4 +82,6 @@ type RelationshipModelFactory = <S extends RelationshipSchema>(
   name: string,
   schema: S,
   unique?: boolean
-) => {};
+) => {
+  create(properties: GetRelationshipProperties<S>): RelationshipModel<S>;
+};

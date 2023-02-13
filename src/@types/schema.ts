@@ -8,10 +8,9 @@ import {
   Point,
   Time,
 } from 'neo4j-driver';
-
 import { Properties, RelationshipDirection } from './utils';
 
-type NodeRelationshipEntry<
+export type NodeRelationshipEntry<
   R extends RelationshipSchema,
   N extends NodeSchema
 > = {
@@ -21,9 +20,10 @@ type NodeRelationshipEntry<
   unique?: boolean;
 };
 
-type NodeAllowedRelationships = {
-  [key: string]: NodeRelationshipEntry<RelationshipSchema, NodeSchema>;
-};
+export type NodeAllowedRelationships = Map<
+  string,
+  NodeRelationshipEntry<RelationshipSchema, NodeSchema>
+>;
 
 export interface NodeSchema<
   L extends readonly string[] = readonly string[],
@@ -33,9 +33,9 @@ export interface NodeSchema<
   schemaProperties: SchemaProperties<P>;
   labels: L;
   allowedRelationships: NodeAllowedRelationships;
-  defineRelationship: <R extends RelationshipSchema, N extends NodeSchema>(
-    relationship: NodeRelationshipEntry<R, N>
-  ) => NodeSchema<L, P>;
+  defineRelationship<R extends RelationshipSchema, N extends NodeSchema>(
+    relationshipEntry: NodeRelationshipEntry<R, N>
+  ): void;
 }
 
 export interface RelationshipSchema<
@@ -78,8 +78,7 @@ type SchemaPropertyTypes =
 export type SchemaFactory = {
   node<L extends NodeSchema['labels'], P extends Properties>(
     labels: L,
-    schemaProperties: SchemaProperties<P>,
-    allowedRelationships?: NodeAllowedRelationships
+    schemaProperties: SchemaProperties<P>
   ): NodeSchema<L, P>;
   relationship<T extends RelationshipSchema['type'], P extends Properties>(
     type: T,
