@@ -2,9 +2,32 @@
 
 Simple OGM for neo4j with a workflow similar to mongoose.
 
-## Supported features
+## Currently supported features
 
 - schemas definition
+  - nodes:
+    - labels
+    - properties
+      - type
+      - mandatory
+      - unique
+      - default
+    - allowed relationships
+      - relationship type
+      - node ("target") type
+      - direction
+  - relationships
+    - type
+    - properties (same as nodes)
 - models creation from schemas
-- nodes creation (query) from model
-- get all nodes (query) of specific model
+- node model:
+  - creation
+  - toString
+  - toObject
+  - add relationship (can't implement typesafety on relationships types)
+  - get all (query)
+  - save (query)
+- relationship model:
+  - creation
+  - toString
+  - toObject
