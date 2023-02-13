@@ -56,7 +56,8 @@ const node: ModelFactory['node'] = (name, schema, unique = true) => {
             'r'
           );
           const m = nodeUtil.buildNode(node.labels, node.properties, 'm');
-          console.log(`MATCH ${n}, ${m}\nCREATE (n)${r}(m)`);
+
+          // TODO: implement actual query building
         },
         save: async (varName: string = 'n') => {
           const built = nodeUtil.buildNode(labels, properties, varName);
