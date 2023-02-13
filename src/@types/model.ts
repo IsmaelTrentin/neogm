@@ -56,32 +56,28 @@ export type PropertiesKeysObject<P extends Properties = Properties> = {
 };
 
 export type ModelFactory = {
-  node: NodeModelFactory;
-  relationship: RelationshipModelFactory;
-};
-
-type NodeModelFactory = <S extends NodeSchema>(
-  name: string,
-  schema: S,
-  unique?: boolean
-) => {
-  create(properties: GetNodeProperties<S>): NodeModel<S>;
-  match(
-    filter?: Partial<GetNodeProperties<S>>
-  ): Promise<QueryResult<NodeModel<S>['properties']>>;
-  query(
-    builder: (
-      labels: S['labels'],
-      keys: PropertiesKeysObject<NodeModel<S>['properties']>
-    ) => string,
-    varNames?: string[]
-  ): Promise<QueryResult<NodeModel<S>['properties']>>;
-};
-
-type RelationshipModelFactory = <S extends RelationshipSchema>(
-  name: string,
-  schema: S,
-  unique?: boolean
-) => {
-  create(properties: GetRelationshipProperties<S>): RelationshipModel<S>;
+  node<S extends NodeSchema>(
+    name: string,
+    schema: S,
+    unique?: boolean
+  ): {
+    create(properties: GetNodeProperties<S>): NodeModel<S>;
+    match(
+      filter?: Partial<GetNodeProperties<S>>
+    ): Promise<QueryResult<NodeModel<S>['properties']>>;
+    query(
+      builder: (
+        labels: S['labels'],
+        keys: PropertiesKeysObject<NodeModel<S>['properties']>
+      ) => string,
+      varNames?: string[]
+    ): Promise<QueryResult<NodeModel<S>['properties']>>;
+  };
+  relationship<S extends RelationshipSchema>(
+    name: string,
+    schema: S,
+    unique?: boolean
+  ): {
+    create(properties: GetRelationshipProperties<S>): RelationshipModel<S>;
+  };
 };
