@@ -33,36 +33,6 @@ const main = async () => {
   } catch (error) {
     throw error;
   }
-  type TestRelationshipType = 'TEST';
-  interface TestRelationshipProps {
-    test: string;
-  }
-
-  const testRelSchema = neogm.schema.relationship<
-    TestRelationshipType,
-    TestRelationshipProps
-  >('TEST', {
-    test: {
-      type: String,
-      mandatory: false,
-    },
-  });
-
-  type NodeLabels = readonly ['Entity', 'NodeTest'];
-  interface NodeProps {
-    prop: Integer;
-    dob: NeoDate;
-    message: string;
-  }
-
-  const nodeSchema = neogm.schema.node<NodeLabels, NodeProps>(
-    ['Entity', 'NodeTest'],
-    {
-      message: String,
-      dob: NeoDate,
-      prop: Integer,
-    }
-  );
 
   type MovieLabels = ['Movie'];
   interface MovieProps {
@@ -75,43 +45,97 @@ const main = async () => {
     },
   });
 
-  // (:Entity:NodeTest)-[:TEST]->(:Movie)
-  nodeSchema.defineRelationship({
-    schema: testRelSchema,
-    nodeSchema: movieSchema,
-    direction: 'out',
+  type AuthorLabels = ['Author'];
+  interface AuthorProps {
+    name: string;
+    dob: NeoDate;
+  }
+  const authorSchema = neogm.schema.node<AuthorLabels, AuthorProps>(
+    ['Author'],
+    {
+      name: {
+        type: String,
+        mandatory: true,
+      },
+      dob: {
+        type: NeoDate,
+        mandatory: true,
+      },
+    }
+  );
+
+  type STARS_IN_Type = 'STARS_IN';
+  interface STARS_IN_Props {
+    as: string;
+  }
+  const starsInSchema = neogm.schema.relationship<
+    STARS_IN_Type,
+    STARS_IN_Props
+  >('STARS_IN', {
+    as: {
+      type: String,
+      mandatory: true,
+    },
   });
+
+  type TEST_Type = 'TEST';
+  interface TEST_Props {
+    test: Integer;
+  }
+  const testSchema = neogm.schema.relationship<TEST_Type, TEST_Props>('TEST', {
+    test: {
+      type: Integer,
+      mandatory: true,
+      default: int(1),
+    },
+  });
+
+  authorSchema.defineRelationship({
+    schema: starsInSchema,
+    direction: 'out',
+    nodeSchema: movieSchema,
+  });
+
+  // authorSchema.defineRelationship({
+  //   schema: testSchema,
+  //   direction: 'in',
+  //   nodeSchema: authorSchema,
+  // });
 
   movieSchema.defineRelationship({
-    schema: testRelSchema,
+    schema: starsInSchema,
     direction: 'in',
-    nodeSchema: nodeSchema,
+    nodeSchema: authorSchema,
   });
 
-  const Node = neogm.model.node<typeof nodeSchema>('Node', nodeSchema);
-  const doc = Node.create({
-    dob: new NeoDate(int(1000), int(1), int(1)),
-    prop: int(1),
-    message: 'msg',
+  const Author = neogm.model.node('Author', authorSchema);
+  const Movie = neogm.model.node('Movie', movieSchema);
+  const STARS_IN = neogm.model.relationship('STARS_IN', starsInSchema);
+  const TEST = neogm.model.relationship('TEST', testSchema);
+
+  const authorDoc = Author.create({
+    name: 'Leonardo Di Caprio',
+    dob: new NeoDate(int(1970), int(1), int(1)),
   });
-  // doc.addRelationship<typeof movieSchema>({
-  //   schema: testRelSchema,
-  //   node: movieSchema,
-  //   direction: 'out',
-  // });
-  doc.addRelationship({
-    relationship: {
-      direction: 'out',
-      type: testRelSchema.type,
-      properties: {
-        test: 'test prop on rel',
-      },
-    },
-    node: {
-      labels: ['Movie'],
-      properties: {},
-    },
+
+  // console.log(authorDoc.toString());
+
+  const movieDoc = Movie.create({
+    title: 'Wolfs of Wallstreet',
   });
+
+  const starsInDoc = STARS_IN.create({
+    as: 'Non mi ricordo',
+  });
+  const testRelDoc = TEST.create({
+    test: int(1),
+  });
+
+  authorDoc.addRelationship<typeof starsInSchema, typeof movieSchema>(
+    starsInDoc,
+    movieDoc,
+    'out'
+  );
 };
 
 main().catch(e => console.error(e));
