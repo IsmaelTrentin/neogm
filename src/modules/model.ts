@@ -1,27 +1,41 @@
 import {
   GetNodeProperties,
   ModelFactory,
+  NodeModel,
+  NodeModelObject,
+  NodeSchema,
+  Properties,
   PropertiesKeysObject,
   RelationshipDirection,
+  RelationshipModel,
+  SavedNodeModelObject,
 } from '../@types';
 
 import { node as nodeUtil } from './node';
 import { relationship as relationshipUtil } from './relationship';
 import { session } from './connect';
 
-const node: ModelFactory['node'] = (name, schema, unique = true) => {
+const node: ModelFactory['node'] = (modelName, schema, unique = true) => {
   const { labels, schemaProperties } = schema;
   type Props = GetNodeProperties<typeof schema>;
 
   return {
     create: properties => {
+      const addedRelationships: {
+        direction: RelationshipDirection;
+        unique?: boolean;
+        relationship: RelationshipModel;
+        node: NodeModelObject<NodeSchema>;
+      }[] = [];
+
       return {
-        name,
+        modelName,
         schema,
         labels,
         properties,
         toString: (varName = 'n') => {
-          return nodeUtil.buildNode(labels, properties, varName);
+          const [nodeStr] = nodeUtil.buildNode(labels, properties, varName);
+          return nodeStr;
         },
         toObject: () => {
           return {
@@ -29,54 +43,112 @@ const node: ModelFactory['node'] = (name, schema, unique = true) => {
             properties,
           };
         },
-        addRelationship: (relationship, node, direction, unique = false) => {
+        addRelationship: config => {
+          const {
+            relationship,
+            nodeSchema,
+            node,
+            direction,
+            unique = false,
+          } = config;
+
           // check source schema compatibility
           const entry = {
             direction,
             unique,
+            nodeSchema,
             schema: relationship.schema,
-            nodeSchema: node.schema,
           };
           const k = relationshipUtil.getHash(entry);
           const data = schema.allowedRelationships.get(k);
 
           if (data == undefined) {
             throw new Error(
-              `the relationship ${k} is not defined in schema ${name}.\nentry: ${name} ${
+              `the relationship ${k} is not defined in schema ${modelName}.\nentry: ${modelName} ${
                 relationship.type
-              } ${node.name} ${direction} unique=${unique || false}`
+              } :${node.labels.join(':')} ${direction} unique=${
+                unique || false
+              }`
             );
           }
 
-          const n = nodeUtil.buildNode(labels, properties, 'n');
-          const r = relationshipUtil.buildBaseRelationship(
-            relationship.type,
+          addedRelationships.push({
             direction,
-            relationship.properties,
-            'r'
-          );
-          const m = nodeUtil.buildNode(node.labels, node.properties, 'm');
+            unique,
+            relationship,
+            node,
+          });
 
-          // TODO: implement actual query building
+          // const n = nodeUtil.buildNode(labels, properties, 'n');
+          // const r = relationshipUtil.buildBaseRelationship(
+          //   relationship.type,
+          //   direction,
+          //   relationship.properties,
+          //   'r'
+          // );
+          // const m = nodeUtil.buildNode(node.labels, node.properties, 'm');
         },
         save: async (varName: string = 'n') => {
-          const built = nodeUtil.buildNode(labels, properties, varName);
-          const createMode = unique ? 'MERGE' : 'CREATE';
-          const result = await session
+          // create node
+          const baseNodeCreateMode = unique ? 'MERGE' : 'CREATE';
+          const baseNodeVarName = 'basenode';
+          const [baseNodeStr, parameters] = nodeUtil.buildNode(
+            labels,
+            properties,
+            baseNodeVarName
+          );
+          await session
             .get()
-            .run<typeof properties>(
-              `${createMode} ${built} RETURN ${varName}`,
-              properties
+            .run(`${baseNodeCreateMode} ${baseNodeStr}`, parameters);
+
+          // create relationsihps
+          let i = 0;
+          for (const entry of addedRelationships) {
+            const { relationship, node, direction, unique } = entry;
+            const createMode = unique ? 'MERGE' : 'CREATE';
+
+            const nodeVarName = `n${i}`;
+            const [nodeStr, nodeParameters] = nodeUtil.buildNode(
+              node.labels,
+              node.properties,
+              nodeVarName
             );
-          return result.records[0].get(varName);
+
+            const relationshipVarName = `r${i}`;
+            const [relationshipStr, relationshipParameters] =
+              relationshipUtil.buildBaseRelationship(
+                relationship.type,
+                direction,
+                relationship.properties,
+                relationshipVarName
+              );
+
+            let query = `MATCH ${baseNodeStr}, ${nodeStr}\n`;
+            query += `${createMode} (${baseNodeVarName})${relationshipStr}(${nodeVarName})`;
+
+            await session.get().run(query, {
+              ...parameters,
+              ...relationshipParameters,
+              ...nodeParameters,
+            });
+
+            i++;
+          }
+
+          const result = await session.get().run<{
+            [baseNodeVarName]: SavedNodeModelObject<typeof schema>;
+          }>(`MATCH ${baseNodeStr} RETURN basenode`, parameters);
+
+          return result.records[0].get('basenode');
         },
       };
     },
     match: async (filter: Partial<Props> = {}) => {
-      const built = nodeUtil.buildNode(labels, filter);
+      const [built, parameters] = nodeUtil.buildNode(labels, filter);
+
       const result = await session
         .get()
-        .run<Props>(`MATCH ${built} RETURN n`, filter);
+        .run<Props>(`MATCH ${built} RETURN n`, parameters);
       // return result.records.map(r => r.get('n'));
       return result;
     },
@@ -87,7 +159,7 @@ const node: ModelFactory['node'] = (name, schema, unique = true) => {
         keysObject[k] = k;
       }
       const query = builder(labels, keysObject);
-      const result = await session.get().run<Props>(query);
+      const result = await session.get().run(query);
 
       return result;
     },
@@ -109,12 +181,13 @@ const relationship: ModelFactory['relationship'] = (
         type,
         properties,
         toString: (direction: RelationshipDirection, varName = 'n') => {
-          return relationshipUtil.buildBaseRelationship(
+          const [relStr] = relationshipUtil.buildBaseRelationship(
             type,
             direction,
             properties,
             varName
           );
+          return relStr;
         },
         toObject: () => {
           return {
