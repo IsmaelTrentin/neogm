@@ -1,4 +1,9 @@
-import { NodeModelObject, NodeSchema, Properties } from '../@types';
+import {
+  MappedParameters,
+  NodeModelObject,
+  NodeSchema,
+  Properties,
+} from '../@types';
 
 export const node = {
   toString<S extends NodeSchema>(
@@ -26,9 +31,15 @@ export const node = {
     properties: Properties,
     varName: string = 'n'
   ) {
-    const keys = Object.keys(properties).map(k => `${k}: \$${varName}${k}`);
+    const propsKeys = Object.keys(properties);
+    const parameterKeys = propsKeys.map(k => `${varName}${k}`);
+    const parametersObj: MappedParameters<Properties, typeof varName> = {};
+    parameterKeys.forEach(
+      (pk, i) => (parametersObj[pk] = properties[propsKeys[i]])
+    );
+    const keys = propsKeys.map(k => `${k}: \$${varName}${k}`);
     const props = keys.length === 0 ? '' : ` {${keys.join(',')}}`;
     const nodeStr = `(${varName.trim()}:${labels.join(':')}${props})`;
-    return nodeStr;
+    return [nodeStr, parametersObj] as const;
   },
 };

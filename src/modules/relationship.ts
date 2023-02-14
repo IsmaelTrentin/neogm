@@ -1,4 +1,5 @@
 import {
+  MappedParameters,
   NodeRelationshipEntry,
   NodeSchema,
   Properties,
@@ -20,12 +21,19 @@ export const relationship = {
     properties: Properties,
     varName: string = 'n'
   ) {
-    const keys = Object.keys(properties).map(k => `${k}: \$${varName}${k}`);
+    const propsKeys = Object.keys(properties);
+    const parameterKeys = propsKeys.map(k => `${varName}${k}`);
+    const parametersObj: MappedParameters<Properties, typeof varName> = {};
+    parameterKeys.forEach(
+      (pk, i) => (parametersObj[pk] = properties[propsKeys[i]])
+    );
+    const keys = propsKeys.map(k => `${k}: \$${varName}${k}`);
     const props = keys.length === 0 ? '' : ` {${keys.join(',')}}`;
     const arrow = direction === 'in' ? '<' : '>';
     const relStr = `${
       direction === 'in' ? arrow : ''
     }-[${varName.trim()}:${type} ${props}]-${direction === 'out' ? arrow : ''}`;
-    return relStr;
+
+    return [relStr, parametersObj] as const;
   },
 };
