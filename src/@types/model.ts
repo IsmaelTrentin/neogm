@@ -4,13 +4,18 @@ import type {
   Properties,
   RelationshipDirection,
 } from './utils';
+import type { Integer, QueryResult } from 'neo4j-driver';
 import type { NodeSchema, RelationshipSchema } from '.';
-
-import type { QueryResult } from 'neo4j-driver';
 
 export interface NodeModelObject<S extends NodeSchema> {
   labels: S['labels'];
   properties: GetNodeProperties<S>;
+}
+
+export interface SavedNodeModelObject<S extends NodeSchema>
+  extends NodeModelObject<S> {
+  identity: Integer;
+  elementId: string;
 }
 
 export interface RelationshipModelObject<S extends RelationshipSchema> {
@@ -20,7 +25,7 @@ export interface RelationshipModelObject<S extends RelationshipSchema> {
 
 export interface NodeModel<S extends NodeSchema = NodeSchema>
   extends NodeModelObject<S> {
-  name: string;
+  modelName: string;
   schema: S;
   toString(varName?: string): string;
   toObject(): NodeModelObject<S>;
@@ -32,13 +37,16 @@ export interface NodeModel<S extends NodeSchema = NodeSchema>
     N extends NonNullable<
       ReturnType<S['allowedRelationships']['get']>
     >['nodeSchema']
-  >(
-    relationship: RelationshipModel<R>,
-    node: NodeModel<N>,
-    direction: RelationshipDirection,
-    unique?: boolean
-  ): void;
-  save(varName?: string): Promise<NodeModelObject<S>['properties']>;
+  >(config: {
+    relationship: RelationshipModel<R>;
+    nodeSchema: N;
+    node: NodeModelObject<N> & {
+      properties: Partial<GetNodeProperties<N>>;
+    };
+    direction: RelationshipDirection;
+    unique?: boolean;
+  }): void;
+  save(varName?: string): Promise<SavedNodeModelObject<S>>;
 }
 
 export interface RelationshipModel<
@@ -71,7 +79,7 @@ export type ModelFactory = {
         keys: PropertiesKeysObject<NodeModel<S>['properties']>
       ) => string,
       varNames?: string[]
-    ): Promise<QueryResult<NodeModel<S>['properties']>>;
+    ): Promise<QueryResult<any>>;
   };
   relationship<S extends RelationshipSchema>(
     name: string,
