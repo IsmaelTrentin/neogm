@@ -25,3 +25,7 @@ export type GetRelationshipType<S extends RelationshipSchema> =
 
 export type GetRelationshipProperties<S extends RelationshipSchema> =
   S extends RelationshipSchema<infer _T, infer P> ? P : never;
+
+export type MappedParameters<T extends Properties, S extends string> = {
+  [Property in keyof T as `${S}${string & Property}`]: T[Property];
+};
