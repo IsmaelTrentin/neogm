@@ -25,8 +25,9 @@ Simple OGM for neo4j with a workflow similar to mongoose.
   - toString
   - toObject
   - add relationship (can't implement typesafety on relationships types)
-  - get all (query)
   - save (query)
+  - match (query)
+  - query (query)
 - relationship model:
   - creation
   - toString
