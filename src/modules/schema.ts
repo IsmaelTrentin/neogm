@@ -1,7 +1,7 @@
 import { NodeAllowedRelationships, SchemaFactory } from '../@types';
 
 import jss from 'json-stable-stringify';
-import { relationship } from './relationship';
+import { relationship } from '../utils/relationship';
 
 const nodeSchemaFactory: SchemaFactory['node'] = (labels, schemaProperties) => {
   const allowedRelationships: NodeAllowedRelationships = new Map();

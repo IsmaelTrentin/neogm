@@ -1,18 +1,16 @@
 import {
   GetNodeProperties,
   ModelFactory,
-  NodeModel,
   NodeModelObject,
   NodeSchema,
-  Properties,
   PropertiesKeysObject,
   RelationshipDirection,
   RelationshipModel,
   SavedNodeModelObject,
 } from '../@types';
 
-import { node as nodeUtil } from './node';
-import { relationship as relationshipUtil } from './relationship';
+import { node as nodeUtil } from '../utils/node';
+import { relationship as relationshipUtil } from '../utils/relationship';
 import { session } from './connect';
 
 const node: ModelFactory['node'] = (modelName, schema, unique = true) => {
@@ -78,15 +76,6 @@ const node: ModelFactory['node'] = (modelName, schema, unique = true) => {
             relationship,
             node,
           });
-
-          // const n = nodeUtil.buildNode(labels, properties, 'n');
-          // const r = relationshipUtil.buildBaseRelationship(
-          //   relationship.type,
-          //   direction,
-          //   relationship.properties,
-          //   'r'
-          // );
-          // const m = nodeUtil.buildNode(node.labels, node.properties, 'm');
         },
         save: async (varName: string = 'n') => {
           // create node
