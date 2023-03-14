@@ -1,3 +1,4 @@
+import { Properties } from './utils';
 import {
   Date,
   DateTime,
@@ -8,22 +9,6 @@ import {
   Point,
   Time,
 } from 'neo4j-driver';
-import { Properties, RelationshipDirection } from './utils';
-
-export type NodeRelationshipEntry<
-  R extends RelationshipSchema,
-  N extends NodeSchema
-> = {
-  schema: R;
-  direction: RelationshipDirection;
-  nodeSchema: N;
-  unique?: boolean;
-};
-
-export type NodeAllowedRelationships = Map<
-  string,
-  NodeRelationshipEntry<RelationshipSchema, NodeSchema>
->;
 
 export interface NodeSchema<
   L extends readonly string[] = readonly string[],
@@ -32,33 +17,46 @@ export interface NodeSchema<
   schemaType: 'node';
   schemaProperties: SchemaProperties<P>;
   labels: L;
-  allowedRelationships: NodeAllowedRelationships;
-  defineRelationship<R extends RelationshipSchema, N extends NodeSchema>(
-    relationshipEntry: NodeRelationshipEntry<R, N>
-  ): void;
-}
-
-export interface RelationshipSchema<
-  T extends string = string,
-  P extends Properties = Properties
-> {
-  schemaType: 'relationship';
-  schemaProperties: SchemaProperties<P>;
-  type: T;
 }
 
 // Used in neogm.schema to define schema structure
 // (intellisense on keys but value is of accepted neo4j types)
 type SchemaProperties<P extends Properties = Properties> = {
-  [Property in keyof P]: SchemaPropertyObject | SchemaPropertyTypes;
+  [Property in keyof P]:
+    | SchemaPropertyObject<PrimitiveToConstructorType<P[Property]>>
+    | PrimitiveToConstructorType<P[Property]>;
 };
 
+type PrimitiveToConstructorType<T> = T extends string
+  ? typeof String
+  : T extends number
+  ? typeof Integer | typeof Number
+  : T extends boolean
+  ? typeof Boolean
+  : T extends Point
+  ? typeof Point
+  : T extends Date
+  ? typeof Date
+  : T extends Time
+  ? typeof Time
+  : T extends LocalTime
+  ? typeof LocalTime
+  : T extends DateTime
+  ? typeof DateTime
+  : T extends LocalDateTime
+  ? typeof DateTime
+  : T extends Duration
+  ? typeof Duration
+  : MapErrorMsg;
+
+type MapErrorMsg = 'Could not map primitive to constructor type';
+
 // In depth definition of schema structure
-interface SchemaPropertyObject {
-  type: SchemaPropertyTypes;
+interface SchemaPropertyObject<T extends SchemaPropertyTypes | MapErrorMsg> {
+  type: T extends SchemaPropertyTypes ? T : never;
   mandatory?: boolean;
   unique?: boolean;
-  default?: InstanceType<SchemaPropertyObject['type']>;
+  default?: T extends SchemaPropertyTypes ? InstanceType<T> : never;
 }
 
 // Allowed types to define schema structure
@@ -80,8 +78,4 @@ export type SchemaFactory = {
     labels: L,
     schemaProperties: SchemaProperties<P>
   ): NodeSchema<L, P>;
-  relationship<T extends RelationshipSchema['type'], P extends Properties>(
-    type: T,
-    schemaProperties: SchemaProperties<P>
-  ): RelationshipSchema<T, P>;
 };

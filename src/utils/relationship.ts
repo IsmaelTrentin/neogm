@@ -1,20 +1,6 @@
-import {
-  MappedParameters,
-  NodeRelationshipEntry,
-  NodeSchema,
-  Properties,
-  RelationshipDirection,
-  RelationshipSchema,
-} from '../@types';
-
-import crypto from 'node:crypto';
-import jss from 'json-stable-stringify';
+import { MappedParameters, Properties, RelationshipDirection } from '../@types';
 
 export const relationship = {
-  getHash(entry: NodeRelationshipEntry<RelationshipSchema, NodeSchema>) {
-    const stringified = jss(entry);
-    return crypto.createHash('md5').update(stringified).digest('base64');
-  },
   buildBaseRelationship(
     type: string,
     direction: RelationshipDirection,

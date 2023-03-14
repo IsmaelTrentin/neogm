@@ -1,3 +1,5 @@
+import { node as nodeUtil } from '../utils/node';
+import { session } from './connect';
 import {
   GetNodeProperties,
   ModelFactory,
@@ -5,13 +7,8 @@ import {
   NodeSchema,
   PropertiesKeysObject,
   RelationshipDirection,
-  RelationshipModel,
   SavedNodeModelObject,
 } from '../@types';
-
-import { node as nodeUtil } from '../utils/node';
-import { relationship as relationshipUtil } from '../utils/relationship';
-import { session } from './connect';
 
 const node: ModelFactory['node'] = (modelName, schema, unique = true) => {
   const { labels, schemaProperties } = schema;
@@ -22,7 +19,6 @@ const node: ModelFactory['node'] = (modelName, schema, unique = true) => {
       const addedRelationships: {
         direction: RelationshipDirection;
         unique?: boolean;
-        relationship: RelationshipModel;
         node: NodeModelObject<NodeSchema>;
       }[] = [];
 
@@ -41,42 +37,6 @@ const node: ModelFactory['node'] = (modelName, schema, unique = true) => {
             properties,
           };
         },
-        addRelationship: config => {
-          const {
-            relationship,
-            nodeSchema,
-            node,
-            direction,
-            unique = false,
-          } = config;
-
-          // check source schema compatibility
-          const entry = {
-            direction,
-            unique,
-            nodeSchema,
-            schema: relationship.schema,
-          };
-          const k = relationshipUtil.getHash(entry);
-          const data = schema.allowedRelationships.get(k);
-
-          if (data == undefined) {
-            throw new Error(
-              `the relationship ${k} is not defined in schema ${modelName}.\nentry: ${modelName} ${
-                relationship.type
-              } :${node.labels.join(':')} ${direction} unique=${
-                unique || false
-              }`
-            );
-          }
-
-          addedRelationships.push({
-            direction,
-            unique,
-            relationship,
-            node,
-          });
-        },
         save: async (varName: string = 'n') => {
           // create node
           const baseNodeCreateMode = unique ? 'MERGE' : 'CREATE';
@@ -91,38 +51,6 @@ const node: ModelFactory['node'] = (modelName, schema, unique = true) => {
             .run(`${baseNodeCreateMode} ${baseNodeStr}`, parameters);
 
           // create relationsihps
-          let i = 0;
-          for (const entry of addedRelationships) {
-            const { relationship, node, direction, unique } = entry;
-            const createMode = unique ? 'MERGE' : 'CREATE';
-
-            const nodeVarName = `n${i}`;
-            const [nodeStr, nodeParameters] = nodeUtil.buildNode(
-              node.labels,
-              node.properties,
-              nodeVarName
-            );
-
-            const relationshipVarName = `r${i}`;
-            const [relationshipStr, relationshipParameters] =
-              relationshipUtil.buildBaseRelationship(
-                relationship.type,
-                direction,
-                relationship.properties,
-                relationshipVarName
-              );
-
-            let query = `MATCH ${baseNodeStr}, ${nodeStr}\n`;
-            query += `${createMode} (${baseNodeVarName})${relationshipStr}(${nodeVarName})`;
-
-            await session.get().run(query, {
-              ...parameters,
-              ...relationshipParameters,
-              ...nodeParameters,
-            });
-
-            i++;
-          }
 
           const result = await session.get().run<{
             [baseNodeVarName]: SavedNodeModelObject<typeof schema>;
@@ -155,41 +83,6 @@ const node: ModelFactory['node'] = (modelName, schema, unique = true) => {
   };
 };
 
-const relationship: ModelFactory['relationship'] = (
-  name,
-  schema,
-  unique = true
-) => {
-  const { type } = schema;
-
-  return {
-    create: properties => {
-      return {
-        name,
-        schema,
-        type,
-        properties,
-        toString: (direction: RelationshipDirection, varName = 'n') => {
-          const [relStr] = relationshipUtil.buildBaseRelationship(
-            type,
-            direction,
-            properties,
-            varName
-          );
-          return relStr;
-        },
-        toObject: () => {
-          return {
-            type,
-            properties,
-          };
-        },
-      };
-    },
-  };
-};
-
 export const model: ModelFactory = {
   node,
-  relationship,
 };
